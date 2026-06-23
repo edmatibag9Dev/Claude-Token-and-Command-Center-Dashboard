@@ -1,111 +1,64 @@
-# Claude Command Center Dashboard
+# Claude Token Command Center
 
-A locally-hosted, self-updating intelligence dashboard for Claude Cowork usage. It tracks token consumption, identifies which AI skills are active or idle, and shows which MCP connectors are being used — all from a single HTML file that refreshes automatically every day at 4PM via a Cowork scheduled task.
+A locally-hosted, self-updating dashboard for Claude **Cowork + Claude Code** usage: live plan limits,
+exact per-day token burn by source, the heaviest sessions, which skills are active or idle, and which
+MCP connectors are in use — all in a single self-contained HTML file (`claude-token-dashboard.html`)
+that a Cowork scheduled task refreshes daily.
+
+> **This is one of two dashboards. Don't collide them.**
+> - **This repo** owns `claude-token-dashboard.html` (the Command Center). It is **Claude-sources-only**
+>   (Cowork + Claude Code + Chat-est) — **no Codex**.
+> - The separate [Token Burn Dashboard](https://github.com/edmatibag9Dev/Token-Burn-Dashboard-)
+>   (`token-burn-dashboard.html`) is the heatmap/dotplot of burn across **all** sources, **including Codex**.
+> - For ~30 days the two overwrote each other because both wrote `claude-token-dashboard.html`. Fixed
+>   2026-06-22: one writer per file, each guarded by an identity marker (see below).
 
 ---
 
-## Overview
+## Ownership & identity guard (why the dashboards stopped fighting)
 
-This project solves a practical problem: when you use Claude Cowork heavily across many skills and automations, it becomes hard to know what's actually being used, what's costing money, and what's sitting idle. The Command Center gives you that visibility in one place, locally on your machine, no server required.
-
----
+- The daily refresh task writes **only** `claude-token-dashboard.html` and **must verify** the file
+  contains `<h1>Claude Token Command Center</h1>` before editing. If the marker is missing, it stops and
+  alerts instead of writing — so it can never clobber the Token Burn dashboard.
+- It must **never** write `token-burn-dashboard.html` (owned by the Token Burn project's native launchd
+  pipeline).
+- Exact token numbers come from the Token Burn project's `daily-burn.json` (the shared source of truth);
+  this task only re-pastes them and overlays live plan limits.
 
 ## Features
 
-- **Token Usage Summary** — Live current-session %, weekly limit %, and extra usage spend pulled from `claude.ai/settings/usage`
-- **Session Breakdown** — Last 25 Cowork sessions classified by type (cowork / dispatch / chat) with estimated input, output, and cache tokens plus cost per session
-- **Skills Command Center** — Every installed skill shown as a card: session count, estimated token cost, last-used date, and active / recent / inactive status. Includes a horizontal bar chart sorted by usage frequency
-- **MCP Connector Usage** — Detects which connectors (Open Brain, Day One, Chrome, Gmail, Slack, Apple Notes, Session Info) appear in session activity
-- **Daily Auto-Refresh** — A Cowork scheduled task runs every day at 4PM, scrapes live data, and writes targeted edits to the HTML file. Static config is never overwritten
-- **Email Alert Protocol** — If the scheduled task is blocked (login required, MCP error, Chrome unavailable), it emails `edmatibag9@gmail.com` with a structured alert and falls back to Apple Notes
+- **Live plan limits** — current-session %, weekly all-models %, Sonnet-only %, extra-usage $ and balance,
+  scraped from `claude.ai/settings/usage`.
+- **Exact token usage (Claude sources only)** — totals, daily burn by source, and source mix for
+  Cowork + Claude Code + Chat-est. Codex is intentionally excluded (it lives on the Token Burn dashboard).
+- **Sessions**, **Skills usage** (active / recent / inactive), and **MCP connector** cards — computed
+  client-side from the embedded `SESSIONS` data.
+- **Daily detail** table — exact per-day Claude-source tokens + cache.
 
----
-
-## How It Works
-
-```
-claude.ai/settings/usage  ──►  Chrome MCP scrape  ──►  USAGE_SUMMARY block
-session_info (last 50)    ──►  classify + estimate  ──►  REAL_DATA sessions array
-                                                          │
-                                                          ▼
-                                               renderCommandCenter()
-                                                 ├── detectSkillUsage()
-                                                 └── detectConnectorUsage()
-```
-
-The dashboard file is a single self-contained HTML file. All skill and connector detection logic is client-side JavaScript that runs in the browser from the sessions array — no backend, no database.
-
----
-
-## File Structure
+## Files
 
 ```
-├── claude-token-dashboard.html        # The Command Center (open this in a browser)
-├── Scheduled/
-│   └── SKILL.md                       # Scheduled task instructions for the daily 4PM refresh
-├── AGENTS.md                          # AI agent instructions for this repo
-├── CONTRIBUTING.md                    # Commit standards and README requirements
-└── README.md                          # This file
+├── claude-token-dashboard.html         # The Command Center — gitignored (contains real usage)
+├── claude-token-dashboard.sample.html  # Committed reference layout with placeholder sample data
+├── Scheduled/SKILL.md                  # The daily 5:02 PM refresh task (ownership-guarded)
+├── .gitignore                          # keeps real-usage html/data out of git
+├── AGENTS.md                           # AI agent instructions
+├── CONTRIBUTING.md                     # commit + README standards
+└── README.md                           # this file
 ```
-
----
-
-## Setup
-
-1. Clone or download this repo to your local machine
-2. Open `claude-token-dashboard.html` in any browser — it works fully offline
-3. To enable daily auto-refresh, the `Scheduled/SKILL.md` task must be registered in Claude Cowork's scheduled task system pointing to this file path
-4. Ensure Chrome is open and you are logged into `claude.ai` before the 4PM scheduled run
-
----
-
-## Configuration
-
-Two JavaScript config objects in `claude-token-dashboard.html` control the Command Center:
-
-**`KNOWN_SKILLS`** — list of skills to track, each with:
-- `label` — display name
-- `keywords` — strings to match against session titles
-- `category` — grouping label (Automation, Sales, Trading, etc.)
-- `icon` — emoji displayed on the card
-
-**`KNOWN_CONNECTORS`** — list of MCP connectors to detect, each with:
-- `label` — display name
-- `keywords` — strings to match against session titles
-- `color` — hex color for the count display
-
-To add a new skill or connector to tracking, add an entry to the relevant array. Do not modify `renderCommandCenter()`, `detectSkillUsage()`, or `detectConnectorUsage()` unless you are changing detection logic for all skills.
-
----
-
-## Scheduled Automation
-
-The daily refresh task (`Scheduled/SKILL.md`) follows this 7-step process:
-
-1. Navigate to `claude.ai/settings/usage` via Chrome MCP
-2. Extract billing period, token totals, and usage percentages
-3. Pull last 50 Cowork sessions via `session_info` and classify each as simple / medium / heavy
-4. Build a 25-session array with estimated tokens and costs
-5. Construct a `USAGE_SUMMARY` block with aggregate stats
-6. Write targeted edits to `claude-token-dashboard.html` — sessions array, usage summary, header meta, summary cards, and last-updated timestamp
-7. Output a completion summary including active/inactive skills and top connector
-
-If any step fails, the task emails `edmatibag9@gmail.com` with a structured alert (category, issue, steps completed, action needed) and stops without retrying.
-
----
 
 ## Data & Privacy
 
-All data stays on your local machine. The HTML file reads no remote APIs at runtime — all data is embedded as JavaScript variables that the scheduled task writes. The only outbound connection is the daily scrape of `claude.ai/settings/usage`, which requires an active browser session.
+The real `claude-token-dashboard.html` embeds your actual session titles, so it is **gitignored** —
+only the sanitized `*.sample.html` is committed. All data stays local; the only outbound call is the
+daily scrape of `claude.ai/settings/usage`.
+
+## Refresh
+
+The Cowork scheduled task `claude-token-dashboard-update` runs daily at 5:02 PM PT: scrape plan limits →
+re-paste `daily-burn.json` / `sessions.json` (Claude sources) → targeted edits to
+`claude-token-dashboard.html` → completion summary, with an email/Apple-Notes alert if blocked.
 
 ---
 
-## Contributing
-
-See `CONTRIBUTING.md` for commit message format, README update requirements, and GitHub push instructions using the Contents API.
-
----
-
-## License
-
-Private repository — for personal use by Ed Matibag.
+_Last updated: 2026-06-22 — renamed to Command Center, Claude-sources-only (Codex removed), single-writer ownership + identity guard._
