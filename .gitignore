@@ -1,0 +1,8 @@
+# Real usage data — never commit (per Ed's Cowork instructions)
+# The live Command Center embeds real session titles; only the *.sample.html is committed.
+claude-token-dashboard.html
+daily-burn.json
+sessions.json
+refresh.log
+refresh.err.log
+.DS_Store
