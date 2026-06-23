@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Token Command Center</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --brand:#2C7A6B; --brand-dk:#1f5a4f; --navy:#2B4C7E; --navy-dk:#1f3a63;
+  --ink:#1b2733; --muted:#64748b; --line:#e6eaef; --bg:#f4f6f9; --card:#ffffff;
+  --up:#15803d; --down:#b91c1c;            /* data green/red — kept separate from brand teal */
+  --cowork:#2B4C7E; --code:#2C7A6B; --chat:#9333ea; --codex:#d97706; --cache:#94a3b8;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --serif:'Fraunces',Georgia,serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);padding:28px;line-height:1.5}
+.wrap{max-width:1320px;margin:0 auto}
+h1{font-family:var(--serif);font-weight:600;font-size:1.9rem;color:var(--brand-dk);letter-spacing:-.01em}
+h2{font-family:var(--serif);font-weight:600;font-size:1.15rem;color:var(--navy);margin-bottom:14px}
+.sub{color:var(--muted);font-size:.92rem;margin-top:4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:22px}
+.badge{display:inline-block;font:600 .68rem/1 var(--sans);text-transform:uppercase;letter-spacing:.06em;padding:4px 8px;border-radius:6px;vertical-align:middle}
+.b-exact{background:#e6f4f1;color:var(--brand-dk)}
+.b-est{background:#fef3e2;color:#b45309}
+.b-live{background:#e8eefb;color:var(--navy-dk)}
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.grid{display:grid;gap:18px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-bottom:18px}
+.kpi .label{color:var(--muted);font-size:.82rem;font-weight:500;display:flex;align-items:center;gap:6px}
+.kpi .val{font-family:var(--mono);font-weight:600;font-size:1.85rem;color:var(--ink);margin-top:8px}
+.kpi .val.brand{color:var(--brand)} .kpi .val.navy{color:var(--navy)}
+.kpi .meta{color:var(--muted);font-size:.8rem;margin-top:4px}
+.limits{grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-bottom:18px}
+.bar{height:8px;border-radius:6px;background:#eef1f5;overflow:hidden;margin:10px 0 6px}
+.bar>i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--brand),var(--navy))}
+.charts{grid-template-columns:1fr 1fr;margin-bottom:18px}
+.chart-box{height:330px;position:relative}
+@media(max-width:900px){.charts{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{text-align:left;color:var(--muted);font-weight:600;font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;padding:10px 12px;border-bottom:2px solid var(--line)}
+td{padding:10px 12px;border-bottom:1px solid var(--line)}
+tbody tr:hover{background:#fafbfc}
+.num{font-family:var(--mono);text-align:right}
+.pill{display:inline-block;font:600 .72rem/1 var(--sans);padding:3px 9px;border-radius:20px}
+.p-cowork{background:#e8eefb;color:var(--navy-dk)} .p-code{background:#e6f4f1;color:var(--brand-dk)}
+.p-codex{background:#fdf0df;color:#b45309} .p-other{background:#eef1f5;color:var(--muted)}
+.k-sub{color:var(--muted);font-style:italic}
+.empty{text-align:center;padding:38px 20px;color:var(--muted)}
+.empty code{display:inline-block;background:#0f172a;color:#e2e8f0;font-family:var(--mono);font-size:.82rem;padding:10px 14px;border-radius:8px;margin-top:12px}
+.banner{background:#fff8ec;border:1px solid #f5d9a8;color:#92600a;border-radius:12px;padding:14px 18px;margin-bottom:18px;font-size:.9rem}
+.foot{color:var(--muted);font-size:.82rem;text-align:center;margin-top:8px;padding:16px;line-height:1.6}
+.tag{font-family:var(--mono);font-size:.78rem;color:var(--brand-dk)}
+.section{margin-bottom:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div>
+      <h1>Claude Token Command Center</h1>
+      <div class="sub" id="subline"></div>
+      <div class="legend">
+        <span class="badge b-exact">Exact</span><span class="sub" style="margin:0">local logs</span>
+        <span class="badge b-est">Est</span><span class="sub" style="margin:0">web chat</span>
+        <span class="badge b-live">Live</span><span class="sub" style="margin:0">plan limits</span>
+      </div>
+    </div>
+    <div class="card" style="min-width:240px">
+      <div class="kpi"><div class="label">Plan <span class="badge b-live">Live</span></div>
+        <div class="val navy" id="plan">—</div>
+        <div class="meta" id="billing">—</div></div>
+    </div>
+  </div>
+
+  <div id="banner-slot"></div>
+
+  <!-- LIVE PLAN LIMITS -->
+  <div class="section">
+    <h2>Plan limits <span class="badge b-live">Live</span></h2>
+    <div class="grid limits" id="limits"></div>
+  </div>
+
+  <!-- EXACT TOKEN KPIs -->
+  <div class="section">
+    <h2>Token usage <span class="badge b-exact">Exact</span> <span class="sub" style="margin:0">cache excluded from total</span></h2>
+    <div class="grid kpis" id="kpis"></div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="grid charts">
+    <div class="card"><h2>Daily burn by source</h2><div class="chart-box"><canvas id="trend"></canvas></div></div>
+    <div class="card"><h2>Source mix</h2><div class="chart-box"><canvas id="mix"></canvas></div></div>
+  </div>
+
+  <!-- SESSIONS -->
+  <div class="card section">
+    <h2 id="sessions-h">Sessions</h2>
+    <div id="sessions-wrap"></div>
+  </div>
+
+  <!-- COMMAND CENTER -->
+  <div class="grid charts">
+    <div class="card section">
+      <h2>Skills usage <span class="badge b-exact">Exact</span> <span class="sub" style="margin:0">from local logs</span></h2>
+      <div id="skills-wrap"></div>
+    </div>
+    <div class="card section">
+      <h2>MCP connectors <span class="badge b-exact">Exact</span> <span class="sub" style="margin:0">tool calls by connector</span></h2>
+      <div id="connectors-wrap"></div>
+    </div>
+  </div>
+
+  <!-- DAILY DETAIL -->
+  <div class="card section">
+    <h2>Daily detail <span class="badge b-exact">Exact</span></h2>
+    <div id="daily-wrap"></div>
+  </div>
+
+  <div class="card foot" id="foot"></div>
+</div>
+
+<script>
+/* ===================== EMBEDDED CONSTANTS ===================== *
+ * Updated by the scheduled task (claude-token-dashboard-update).
+ *  - USAGE_SUMMARY : LIVE plan limits from claude.ai/settings/usage (not tokens)
+ *  - DAILY_BURN    : EXACT per-day tokens from Token Burn ingesters (daily-burn.json)
+ *  - SESSIONS      : EXACT per-session rows (sessions.json); real rows have no _sample
+ *  - LAST_UPDATED  : render timestamp (America/Los_Angeles)
+ * ============================================================= */
+
+const USAGE_SUMMARY = {
+  "billingPeriod": "Jun 1, 2026 – Jul 1, 2026",
+  "plan": "Max (5x)",
+  "currentSessionPct": 12,
+  "weeklyAllPct": 18,
+  "weeklySonnetPct": 0,
+  "extraUsageSpent": 42.5,
+  "extraUsageLimit": 80,
+  "currentBalance": 25,
+  "dailyRoutineRuns": "0 / 15",
+  "lastFetched": "SAMPLE",
+  "note": "SAMPLE DATA — placeholder figures for the public repo. The live dashboard is generated locally and gitignored. Claude sources only (Cowork + Claude Code); Codex burn lives on the Token Burn dashboard."
+};
+
+// Empty until the ingesters run natively on the Mac. The next scheduled run
+// (or `node ingest/*` + a regen) pastes the real daily-burn.json / sessions.json here.
+const DAILY_BURN = [
+  {
+    "_sample": true,
+    "date": "2026-06-16",
+    "cowork_tokens": 120000,
+    "claude_code_tokens": 30000,
+    "claude_chat_est": 0,
+    "codex_tokens": 0,
+    "_cache_cowork": 960000,
+    "_cache_claude_code": 240000,
+    "_cache_codex": 0,
+    "cache_tokens": 1200000,
+    "total": 150000
+  },
+  {
+    "_sample": true,
+    "date": "2026-06-17",
+    "cowork_tokens": 95000,
+    "claude_code_tokens": 0,
+    "claude_chat_est": 0,
+    "codex_tokens": 0,
+    "_cache_cowork": 760000,
+    "_cache_claude_code": 0,
+    "_cache_codex": 0,
+    "cache_tokens": 760000,
+    "total": 95000
+  },
+  {
+    "_sample": true,
+    "date": "2026-06-18",
+    "cowork_tokens": 140000,
+    "claude_code_tokens": 45000,
+    "claude_chat_est": 0,
+    "codex_tokens": 0,
+    "_cache_cowork": 1120000,
+    "_cache_claude_code": 360000,
+    "_cache_codex": 0,
+    "cache_tokens": 1480000,
+    "total": 185000
+  },
+  {
+    "_sample": true,
+    "date": "2026-06-19",
+    "cowork_tokens": 80000,
+    "claude_code_tokens": 20000,
+    "claude_chat_est": 0,
+    "codex_tokens": 0,
+    "_cache_cowork": 640000,
+    "_cache_claude_code": 160000,
+    "_cache_codex": 0,
+    "cache_tokens": 800000,
+    "total": 100000
+  },
+  {
+    "_sample": true,
+    "date": "2026-06-20",
+    "cowork_tokens": 160000,
+    "claude_code_tokens": 60000,
+    "claude_chat_est": 0,
+    "codex_tokens": 0,
+    "_cache_cowork": 1280000,
+    "_cache_claude_code": 480000,
+    "_cache_codex": 0,
+    "cache_tokens": 1760000,
+    "total": 220000
+  },
+  {
+    "_sample": true,
+    "date": "2026-06-21",
+    "cowork_tokens": 110000,
+    "claude_code_tokens": 0,
+    "claude_chat_est": 0,
+    "codex_tokens": 0,
+    "_cache_cowork": 880000,
+    "_cache_claude_code": 0,
+    "_cache_codex": 0,
+    "cache_tokens": 880000,
+    "total": 110000
+  },
+  {
+    "_sample": true,
+    "date": "2026-06-22",
+    "cowork_tokens": 130000,
+    "claude_code_tokens": 40000,
+    "claude_chat_est": 0,
+    "codex_tokens": 0,
+    "_cache_cowork": 1040000,
+    "_cache_claude_code": 320000,
+    "_cache_codex": 0,
+    "cache_tokens": 1360000,
+    "total": 170000
+  }
+];
+const SESSIONS = [
+  {
+    "_sample": true,
+    "title": "Token dashboard update",
+    "source": "cowork",
+    "kind": "main",
+    "date": "2026-06-22",
+    "input_tokens": 24000,
+    "output_tokens": 5000,
+    "tokens": 29000,
+    "cache_tokens": 203000,
+    "models": [
+      "claude-sonnet-4-6"
+    ],
+    "cost": 0.15
+  },
+  {
+    "_sample": true,
+    "title": "Substack inbox watcher",
+    "source": "cowork",
+    "kind": "main",
+    "date": "2026-06-22",
+    "input_tokens": 5000,
+    "output_tokens": 1500,
+    "tokens": 6500,
+    "cache_tokens": 45500,
+    "models": [
+      "claude-sonnet-4-6"
+    ],
+    "cost": 0.04
+  },
+  {
+    "_sample": true,
+    "title": "Open brain wiki update",
+    "source": "cowork",
+    "kind": "main",
+    "date": "2026-06-21",
+    "input_tokens": 2000,
+    "output_tokens": 600,
+    "tokens": 2600,
+    "cache_tokens": 18200,
+    "models": [
+      "claude-sonnet-4-6"
+    ],
+    "cost": 0.02
+  },
+  {
+    "_sample": true,
+    "title": "Weekly saltwater fishing report",
+    "source": "cowork",
+    "kind": "main",
+    "date": "2026-06-21",
+    "input_tokens": 80000,
+    "output_tokens": 8000,
+    "tokens": 88000,
+    "cache_tokens": 616000,
+    "models": [
+      "claude-sonnet-4-6"
+    ],
+    "cost": 0.37
+  },
+  {
+    "_sample": true,
+    "title": "Meeting research — demo prep",
+    "source": "cowork",
+    "kind": "main",
+    "date": "2026-06-20",
+    "input_tokens": 25000,
+    "output_tokens": 5000,
+    "tokens": 30000,
+    "cache_tokens": 210000,
+    "models": [
+      "claude-sonnet-4-6"
+    ],
+    "cost": 0.15
+  },
+  {
+    "_sample": true,
+    "title": "RVOL trade review",
+    "source": "cowork",
+    "kind": "main",
+    "date": "2026-06-20",
+    "input_tokens": 25000,
+    "output_tokens": 5000,
+    "tokens": 30000,
+    "cache_tokens": 210000,
+    "models": [
+      "claude-sonnet-4-6"
+    ],
+    "cost": 0.15
+  },
+  {
+    "_sample": true,
+    "title": "Excel budget model",
+    "source": "claude_code",
+    "kind": "main",
+    "date": "2026-06-19",
+    "input_tokens": 30000,
+    "output_tokens": 6000,
+    "tokens": 36000,
+    "cache_tokens": 252000,
+    "models": [
+      "claude-opus-4-8"
+    ],
+    "cost": 0.3
+  },
+  {
+    "_sample": true,
+    "title": "Word report draft",
+    "source": "cowork",
+    "kind": "main",
+    "date": "2026-06-18",
+    "input_tokens": 25000,
+    "output_tokens": 5000,
+    "tokens": 30000,
+    "cache_tokens": 210000,
+    "models": [
+      "claude-sonnet-4-6"
+    ],
+    "cost": 0.15
+  }
+];
+
+const LAST_UPDATED = "Sample data";
+
+const USAGE_BREAKDOWN = {
+  "generated": "2026-06-13T04:42:03.660Z",
+  "tz": "America/Los_Angeles",
+  "counted_messages": 11924,
+  "skipped_duplicates": 15033,
+  "skills": [
+    {
+      "name": "skill-creator",
+      "count": 7,
+      "lastUsed": "2026-06-05",
+      "sources": {
+        "cowork": 7,
+        "claude_code": 0
+      }
+    },
+    {
+      "name": "anthropic-skills:docx",
+      "count": 4,
+      "lastUsed": "2026-06-11",
+      "sources": {
+        "cowork": 3,
+        "claude_code": 1
+      }
+    },
+    {
+      "name": "stock-analysis",
+      "count": 3,
+      "lastUsed": "2026-06-11",
+      "sources": {
+        "cowork": 3,
+        "claude_code": 0
+      }
+    },
+    {
+      "name": "meeting-research",
+      "count": 3,
+      "lastUsed": "2026-06-11",
+      "sources": {
+        "cowork": 3,
+        "claude_code": 0
+      }
+    },
+    {
+      "name": "heavy-file-ingestion",
+      "count": 3,
+      "lastUsed": "2026-06-04",
+      "sources": {
+        "cowork": 3,
+        "claude_code": 0
+      }
+    },
+    {
+      "name": "anthropic-skills:dispatch-capture",
+      "count": 2,
+      "lastUsed": "2026-06-10",
+      "sources": {
+        "cowork": 0,
+        "claude_code": 2
+      }
+    },
+    {
+      "name": "docx",
+      "count": 2,
+      "lastUsed": "2026-06-03",
+      "sources": {
+        "cowork": 2,
+        "claude_code": 0
+      }
+    },
+    {
+      "name": "schedule",
+      "count": 2,
+      "lastUsed": "2026-04-10",
+      "sources": {
+        "cowork": 2,
+        "claude_code": 0
+      }
+    },
+    {
+      "name": "anthropic-skills:skill-creator",
+      "count": 1,
+      "lastUsed": "2026-06-05",
+      "sources": {
+        "cowork": 0,
+        "claude_code": 1
+      }
+    },
+    {
+      "name": "update-config",
+      "count": 1,
+      "lastUsed": "2026-06-10",
+      "sources": {
+        "cowork": 0,
+        "claude_code": 1
+      }
+    },
+    {
+      "name": "anthropic-skills:schedule",
+      "count": 1,
+      "lastUsed": "2026-06-10",
+      "sources": {
+        "cowork": 0,
+        "claude_code": 1
+      }
+    },
+    {
+      "name": "deep-research",
+      "count": 1,
+      "lastUsed": "2026-06-11",
+      "sources": {
+        "cowork": 0,
+        "claude_code": 1
+      }
+    },
+    {
+      "name": "xlsx",
+      "count": 1,
+      "lastUsed": "2026-03-18",
+      "sources": {
+        "cowork": 1,
+        "claude_code": 0
+      }
+    },
+    {
+      "name": "productivity:memory-management",
+      "count": 1,
+      "lastUsed": "2026-04-13",
+      "sources": {
+        "cowork": 1,
+        "claude_code": 0
+      }
+    },
+    {
+      "name": "anthropic-skills:xlsx",
+      "count": 1,
+      "lastUsed": "2026-06-05",
+      "sources": {
+        "cowork": 1,
+        "claude_code": 0
+      }
+    },
+    {
+      "name": "anthropic-skills:stock-analysis",
+      "count": 1,
+      "lastUsed": "2026-06-05",
+      "sources": {
+        "cowork": 1,
+        "claude_code": 0
+      }
+    },
+    {
+      "name": "anthropic-skills:open-brain-dedup",
+      "count": 1,
+      "lastUsed": "2026-06-05",
+      "sources": {
+        "cowork": 1,
+        "claude_code": 0
+      }
+    },
+    {
+      "name": "productivity:start",
+      "count": 1,
+      "lastUsed": "2026-03-31",
+      "sources": {
+        "cowork": 1,
+        "claude_code": 0
+      }
+    },
+    {
+      "name": "dispatch-capture",
+      "count": 1,
+      "lastUsed": "2026-06-10",
+      "sources": {
+        "cowork": 1,
+        "claude_code": 0
+      }
+    }
+  ],
+  "connectors": [
+    {
+      "server": "Claude_in_Chrome",
+      "label": "Claude in Chrome",
+      "count": 2398,
+      "lastUsed": "2026-06-12",
+      "tools": [
+        {
+          "name": "javascript_tool",
+          "count": 841
+        },
+        {
+          "name": "computer",
+          "count": 523
+        },
+        {
+          "name": "navigate",
+          "count": 287
+        },
+        {
+          "name": "browser_batch",
+          "count": 254
+        },
+        {
+          "name": "tabs_context_mcp",
+          "count": 160
+        },
+        {
+          "name": "get_page_text",
+          "count": 138
+        },
+        {
+          "name": "find",
+          "count": 110
+        },
+        {
+          "name": "form_input",
+          "count": 26
+        },
+        {
+          "name": "select_browser",
+          "count": 14
+        },
+        {
+          "name": "read_page",
+          "count": 11
+        },
+        {
+          "name": "tabs_create_mcp",
+          "count": 9
+        },
+        {
+          "name": "read_network_requests",
+          "count": 9
+        },
+        {
+          "name": "list_connected_browsers",
+          "count": 8
+        },
+        {
+          "name": "tabs_close_mcp",
+          "count": 3
+        },
+        {
+          "name": "switch_browser",
+          "count": 2
+        },
+        {
+          "name": "shortcuts_execute",
+          "count": 2
+        },
+        {
+          "name": "wait",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "server": "workspace",
+      "label": "workspace",
+      "count": 1593,
+      "lastUsed": "2026-06-12",
+      "tools": [
+        {
+          "name": "bash",
+          "count": 1517
+        },
+        {
+          "name": "web_fetch",
+          "count": 76
+        }
+      ]
+    },
+    {
+      "server": "computer-use",
+      "label": "computer use",
+      "count": 967,
+      "lastUsed": "2026-06-10",
+      "tools": [
+        {
+          "name": "screenshot",
+          "count": 393
+        },
+        {
+          "name": "scroll",
+          "count": 305
+        },
+        {
+          "name": "request_access",
+          "count": 75
+        },
+        {
+          "name": "open_application",
+          "count": 32
+        },
+        {
+          "name": "left_click",
+          "count": 32
+        },
+        {
+          "name": "computer_batch",
+          "count": 32
+        },
+        {
+          "name": "switch_display",
+          "count": 31
+        },
+        {
+          "name": "zoom",
+          "count": 22
+        },
+        {
+          "name": "teach_step",
+          "count": 16
+        },
+        {
+          "name": "list_granted_applications",
+          "count": 7
+        },
+        {
+          "name": "key",
+          "count": 7
+        },
+        {
+          "name": "wait",
+          "count": 4
+        },
+        {
+          "name": "type",
+          "count": 4
+        },
+        {
+          "name": "request_teach_access",
+          "count": 3
+        },
+        {
+          "name": "write_clipboard",
+          "count": 2
+        },
+        {
+          "name": "double_click",
+          "count": 1
+        },
+        {
+          "name": "triple_click",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "server": "cowork",
+      "label": "cowork",
+      "count": 227,
+      "lastUsed": "2026-06-12",
+      "tools": [
+        {
+          "name": "present_files",
+          "count": 197
+        },
+        {
+          "name": "request_cowork_directory",
+          "count": 18
+        },
+        {
+          "name": "create_artifact",
+          "count": 4
+        },
+        {
+          "name": "allow_cowork_file_delete",
+          "count": 4
+        },
+        {
+          "name": "update_artifact",
+          "count": 3
+        },
+        {
+          "name": "send_user_message",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "server": "dayone",
+      "label": "dayone",
+      "count": 186,
+      "lastUsed": "2026-06-12",
+      "tools": [
+        {
+          "name": "create_journal_entry",
+          "count": 133
+        },
+        {
+          "name": "list_journals",
+          "count": 18
+        },
+        {
+          "name": "search_entries",
+          "count": 13
+        },
+        {
+          "name": "list_journals_from_db",
+          "count": 10
+        },
+        {
+          "name": "read_recent_entries",
+          "count": 6
+        },
+        {
+          "name": "get_entries_by_date",
+          "count": 4
+        },
+        {
+          "name": "get_entry_count",
+          "count": 1
+        },
+        {
+          "name": "create_entry_with_attachments",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "server": "open-brain",
+      "label": "open brain",
+      "count": 123,
+      "lastUsed": "2026-06-12",
+      "tools": [
+        {
+          "name": "capture_thought",
+          "count": 53
+        },
+        {
+          "name": "list_thoughts",
+          "count": 30
+        },
+        {
+          "name": "search_thoughts",
+          "count": 20
+        },
+        {
+          "name": "thought_stats",
+          "count": 18
+        },
+        {
+          "name": "delete_thought",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "server": "ee90ba9e-a1f2-4b4f-9de0-2dd84a6094ab",
+      "label": "Capture (connector)",
+      "count": 83,
+      "lastUsed": "2026-04-26",
+      "tools": [
+        {
+          "name": "capture_thought",
+          "count": 42
+        },
+        {
+          "name": "search_thoughts",
+          "count": 26
+        },
+        {
+          "name": "list_thoughts",
+          "count": 8
+        },
+        {
+          "name": "thought_stats",
+          "count": 7
+        }
+      ]
+    },
+    {
+      "server": "becd56df-d006-45ea-8ae7-71bca34c5f62",
+      "label": "Thought (connector)",
+      "count": 64,
+      "lastUsed": "2026-05-15",
+      "tools": [
+        {
+          "name": "thought_stats",
+          "count": 22
+        },
+        {
+          "name": "list_thoughts",
+          "count": 22
+        },
+        {
+          "name": "capture_thought",
+          "count": 14
+        },
+        {
+          "name": "search_thoughts",
+          "count": 6
+        }
+      ]
+    },
+    {
+      "server": "scheduled-tasks",
+      "label": "scheduled tasks",
+      "count": 50,
+      "lastUsed": "2026-06-12",
+      "tools": [
+        {
+          "name": "list_scheduled_tasks",
+          "count": 19
+        },
+        {
+          "name": "update_scheduled_task",
+          "count": 18
+        },
+        {
+          "name": "create_scheduled_task",
+          "count": 13
+        }
+      ]
+    },
+    {
+      "server": "session_info",
+      "label": "session info",
+      "count": 30,
+      "lastUsed": "2026-06-09",
+      "tools": [
+        {
+          "name": "list_sessions",
+          "count": 27
+        },
+        {
+          "name": "read_transcript",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "server": "Control_Chrome",
+      "label": "Control Chrome",
+      "count": 26,
+      "lastUsed": "2026-06-08",
+      "tools": [
+        {
+          "name": "get_page_content",
+          "count": 9
+        },
+        {
+          "name": "open_url",
+          "count": 8
+        },
+        {
+          "name": "list_tabs",
+          "count": 4
+        },
+        {
+          "name": "execute_javascript",
+          "count": 3
+        },
+        {
+          "name": "get_current_tab",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "server": "da7c79e1-138d-4028-bb12-5d671622c169",
+      "label": "List (connector)",
+      "count": 20,
+      "lastUsed": "2026-04-25",
+      "tools": [
+        {
+          "name": "apply_migration",
+          "count": 10
+        },
+        {
+          "name": "execute_sql",
+          "count": 7
+        },
+        {
+          "name": "list_tables",
+          "count": 2
+        },
+        {
+          "name": "list_projects",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "server": "0d87112c-54fd-4221-ad16-0fac875e1609",
+      "label": "Slack (connector)",
+      "count": 17,
+      "lastUsed": "2026-06-12",
+      "tools": [
+        {
+          "name": "slack_search_channels",
+          "count": 8
+        },
+        {
+          "name": "slack_read_channel",
+          "count": 6
+        },
+        {
+          "name": "slack_search_public_and_private",
+          "count": 2
+        },
+        {
+          "name": "slack_send_message",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "server": "Read_and_Write_Apple_Notes",
+      "label": "Read and Write Apple Notes",
+      "count": 17,
+      "lastUsed": "2026-06-11",
+      "tools": [
+        {
+          "name": "add_note",
+          "count": 17
+        }
+      ]
+    },
+    {
+      "server": "visualize",
+      "label": "visualize",
+      "count": 16,
+      "lastUsed": "2026-06-06",
+      "tools": [
+        {
+          "name": "show_widget",
+          "count": 9
+        },
+        {
+          "name": "read_me",
+          "count": 7
+        }
+      ]
+    },
+    {
+      "server": "c3f28ad6-cd5d-4df8-b068-16bbf14ebb95",
+      "label": "Create (connector)",
+      "count": 13,
+      "lastUsed": "2026-06-11",
+      "tools": [
+        {
+          "name": "create_file",
+          "count": 6
+        },
+        {
+          "name": "search_files",
+          "count": 4
+        },
+        {
+          "name": "copy_file",
+          "count": 1
+        },
+        {
+          "name": "get_file_metadata",
+          "count": 1
+        },
+        {
+          "name": "list_recent_files",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "server": "mcp-registry",
+      "label": "registry",
+      "count": 10,
+      "lastUsed": "2026-06-02",
+      "tools": [
+        {
+          "name": "search_mcp_registry",
+          "count": 9
+        },
+        {
+          "name": "suggest_connectors",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "server": "ccd_session",
+      "label": "ccd session",
+      "count": 8,
+      "lastUsed": "2026-06-12",
+      "tools": [
+        {
+          "name": "mark_chapter",
+          "count": 8
+        }
+      ]
+    },
+    {
+      "server": "8d8de561-76c2-4800-a342-cf53e02ff49c",
+      "label": "Search (connector)",
+      "count": 5,
+      "lastUsed": "2026-06-02",
+      "tools": [
+        {
+          "name": "create_draft",
+          "count": 3
+        },
+        {
+          "name": "search_threads",
+          "count": 1
+        },
+        {
+          "name": "get_thread",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "server": "ccd_session_mgmt",
+      "label": "ccd session mgmt",
+      "count": 3,
+      "lastUsed": "2026-06-11",
+      "tools": [
+        {
+          "name": "search_session_transcripts",
+          "count": 2
+        },
+        {
+          "name": "list_sessions",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "server": "plugins",
+      "label": "plugins",
+      "count": 3,
+      "lastUsed": "2026-06-02",
+      "tools": [
+        {
+          "name": "search_plugins",
+          "count": 1
+        },
+        {
+          "name": "suggest_plugin_install",
+          "count": 1
+        },
+        {
+          "name": "list_plugins",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "server": "plugin_productivity_slack",
+      "label": "plugin productivity slack",
+      "count": 3,
+      "lastUsed": "2026-06-05",
+      "tools": [
+        {
+          "name": "authenticate",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "server": "Claude_Preview",
+      "label": "Claude Preview",
+      "count": 1,
+      "lastUsed": "2026-06-10",
+      "tools": [
+        {
+          "name": "preview_screenshot",
+          "count": 1
+        }
+      ]
+    }
+  ]
+};
+
+/* ===================== RENDER ===================== */
+const fmt = n => (n||0).toLocaleString('en-US');
+const k = n => (n>=1000 ? (n/1000).toFixed(n>=100000?0:1)+'k' : String(n||0));
+const SOURCES = [
+  {key:'cowork_tokens', label:'Cowork', color:'var(--cowork)'},
+  {key:'claude_code_tokens', label:'Claude Code', color:'var(--code)'},
+  {key:'claude_chat_est', label:'Chat (est)', color:'var(--chat)'},
+];
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+document.getElementById('subline').textContent =
+  `${USAGE_SUMMARY.billingPeriod} · last updated ${LAST_UPDATED}`;
+document.getElementById('plan').textContent = USAGE_SUMMARY.plan;
+document.getElementById('billing').textContent = `Billing ${USAGE_SUMMARY.billingPeriod}`;
+
+/* ---- live limits ---- */
+const extraPct = Math.round(USAGE_SUMMARY.extraUsageSpent / USAGE_SUMMARY.extraUsageLimit * 100);
+const limitCards = [
+  {label:'Current session', val:USAGE_SUMMARY.currentSessionPct+'%', pct:USAGE_SUMMARY.currentSessionPct, meta:(100-USAGE_SUMMARY.currentSessionPct)+'% remaining'},
+  {label:'Weekly · all models', val:USAGE_SUMMARY.weeklyAllPct+'%', pct:USAGE_SUMMARY.weeklyAllPct, meta:'Sonnet-only '+USAGE_SUMMARY.weeklySonnetPct+'%'},
+  {label:'Extra usage', val:'$'+USAGE_SUMMARY.extraUsageSpent.toFixed(2), pct:extraPct, meta:'of $'+USAGE_SUMMARY.extraUsageLimit+' ('+extraPct+'%)'},
+  {label:'Credit balance', val:'$'+USAGE_SUMMARY.currentBalance.toFixed(2), pct:null, meta:'Daily routines '+USAGE_SUMMARY.dailyRoutineRuns},
+];
+document.getElementById('limits').innerHTML = limitCards.map(c=>`
+  <div class="card kpi">
+    <div class="label">${c.label} <span class="badge b-live">Live</span></div>
+    <div class="val">${c.val}</div>
+    ${c.pct!=null?`<div class="bar"><i style="width:${Math.min(c.pct,100)}%"></i></div>`:''}
+    <div class="meta">${c.meta}</div>
+  </div>`).join('');
+
+/* ---- exact KPIs from DAILY_BURN ---- */
+const sum = key => DAILY_BURN.reduce((a,r)=>a+(r[key]||0),0);
+const coworkT = sum('cowork_tokens'), codeT = sum('claude_code_tokens');
+const chatT = sum('claude_chat_est');
+const grandTotal = coworkT + codeT + chatT;   // Claude sources only — Codex burn lives on the Token Burn dashboard, not here
+const cacheTotal = sum('_cache_cowork') + sum('_cache_claude_code');
+const pct = v => grandTotal? Math.round(v/grandTotal*100) : 0;
+const days = DAILY_BURN.length;
+const avg = days? Math.round(grandTotal/days) : 0;
+
+document.getElementById('kpis').innerHTML = [
+  {label:'Total tokens', val:fmt(grandTotal), cls:'brand', meta:`${days} day${days===1?'':'s'} · cache excluded`},
+  {label:'Cache (separate)', val:fmt(cacheTotal), cls:'', meta:'priced ~10× cheaper'},
+  {label:'Cowork', val:k(coworkT), cls:'navy', meta:pct(coworkT)+'% of total'},
+  {label:'Claude Code', val:k(codeT), cls:'brand', meta:pct(codeT)+'% of total'},
+  {label:'Daily average', val:k(avg), cls:'', meta:'tokens / active day'},
+].map(c=>`<div class="card kpi"><div class="label">${c.label} <span class="badge b-exact">Exact</span></div>
+  <div class="val ${c.cls}">${c.val}</div><div class="meta">${c.meta}</div></div>`).join('');
+
+/* ---- empty-state banner ---- */
+if (days === 0) {
+  document.getElementById('banner-slot').innerHTML = `<div class="banner">
+    <strong>Awaiting first exact ingest.</strong> Plan limits above are live, but no per-day token
+    data has been measured yet. Run the ingesters natively on the Mac, then the next scheduled
+    refresh will fill these charts:
+    <div style="margin-top:8px"><code style="background:#0f172a;color:#e2e8f0;padding:8px 12px;border-radius:6px;display:inline-block;font-family:var(--mono)">cd ~/Claude/Projects/"Token Burn Dashboard" && ./ingest/run-all.sh</code></div>
+  </div>`;
+}
+
+/* ---- charts ---- */
+if (days > 0) {
+  const labels = DAILY_BURN.map(r=>r.date.slice(5));
+  new Chart(document.getElementById('trend'), {
+    type:'bar',
+    data:{labels, datasets: SOURCES.filter(s=>sum(s.key)>0).map(s=>({
+      label:s.label, data:DAILY_BURN.map(r=>r[s.key]||0),
+      backgroundColor:css(s.color.replace('var(','').replace(')','')) || s.color
+    }))},
+    options:{responsive:true,maintainAspectRatio:false,
+      scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:k}}},
+      plugins:{legend:{position:'bottom'}}}
+  });
+  const mixVals = SOURCES.map(s=>sum(s.key));
+  new Chart(document.getElementById('mix'), {
+    type:'doughnut',
+    data:{labels:SOURCES.map(s=>s.label),
+      datasets:[{data:mixVals,backgroundColor:['#2B4C7E','#2C7A6B','#9333ea','#d97706'],borderColor:'#fff',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{position:'bottom'}}}
+  });
+} else {
+  for (const id of ['trend','mix']) {
+    const c=document.getElementById(id); const p=c.parentElement;
+    p.innerHTML='<div class="empty">No exact data yet — run the ingesters.</div>';
+  }
+}
+
+/* ---- sessions table ---- */
+const isSample = SESSIONS.some(s=>s._sample);
+const sessBadge = isSample? '<span class="badge b-est">Sample</span>' : '<span class="badge b-exact">Exact</span>';
+document.getElementById('sessions-h').innerHTML = `Sessions ${sessBadge}` +
+  (isSample? ' <span class="sub" style="margin:0">placeholder rows — run ingest-sessions.mjs</span>':'');
+const pcls = s => s==='cowork'?'p-cowork':s==='claude_code'?'p-code':s==='codex'?'p-codex':'p-other';
+const plabel = s => s==='claude_code'?'Claude Code':s.charAt(0).toUpperCase()+s.slice(1);
+const escH = v => String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const MODEL_LABEL = m => String(m).replace('claude-','').replace('opus-4-8','Opus 4.8').replace('sonnet-4-6','Sonnet 4.6').replace('haiku-4-5','Haiku 4.5').replace('fable-5','Fable 5').replace(/-/g,' ').trim();
+const topModel = s => { const m=s.models; if(!m) return '—'; if(Array.isArray(m)) return m.length?MODEL_LABEL(m[0]):'—'; const e=Object.entries(m).sort((a,b)=>b[1]-a[1])[0]; return e?MODEL_LABEL(e[0]):'—'; };
+let sessSort={k:'tokens',dir:-1};
+const SESS_COLS=[
+  {label:'Session',k:'title',sortable:false,align:'left'},
+  {label:'Source',k:'source',sortable:false,align:'left'},
+  {label:'Model',k:'_model',sortable:false,align:'left'},
+  {label:'Date',k:'date',sortable:true,align:'left'},
+  {label:'In',k:'input_tokens',sortable:true,align:'right'},
+  {label:'Out',k:'output_tokens',sortable:true,align:'right'},
+  {label:'Tokens',k:'tokens',sortable:true,align:'right'},
+  {label:'Cache',k:'cache_tokens',sortable:true,align:'right'},
+  {label:'Cost',k:'cost',sortable:true,align:'right'},
+];
+function renderSessionsTable(){
+  const wrap=document.getElementById('sessions-wrap');
+  if (!SESSIONS.length){
+    wrap.innerHTML='<div class="empty">No sessions yet — run <span class="tag">node ingest/ingest-sessions.mjs</span></div>';
+    return;
+  }
+  const seen=new Set();
+  const uniq=SESSIONS.filter(r=>{const kk=(r.id||'')+'|'+(r.file||'')+'|'+r.tokens+'|'+r.cache_tokens+'|'+r.title; if(seen.has(kk))return false; seen.add(kk); return true;});
+  const sorted=uniq.sort((a,b)=>{const x=a[sessSort.k],y=b[sessSort.k]; return (x<y?-1:x>y?1:0)*sessSort.dir;}).slice(0,40);
+  const rows=sorted.map(s=>`<tr>
+    <td>${escH(s.title||'—')}${s.kind==='subagent'?' <span class="k-sub">· subagent</span>':''}</td>
+    <td><span class="pill ${pcls(s.source)}">${plabel(s.source)}</span></td>
+    <td>${escH(topModel(s))}</td>
+    <td>${s.date||'—'}</td>
+    <td class="num">${k(s.input_tokens)}</td>
+    <td class="num">${k(s.output_tokens)}</td>
+    <td class="num"><strong>${k(s.tokens)}</strong></td>
+    <td class="num">${k(s.cache_tokens)}</td>
+    <td class="num">${s.cost==null?'<span class="sub">pending</span>':'$'+s.cost.toFixed(2)}</td>
+  </tr>`).join('');
+  const head=SESS_COLS.map(c=>{
+    const arrow=(c.sortable && sessSort.k===c.k)?(sessSort.dir<0?' ▾':' ▴'):'';
+    const cls=c.sortable?' class="sortable" style="cursor:pointer'+(c.align==='right'?';text-align:right':'')+'"':(c.align==='right'?' style="text-align:right"':'');
+    const dk=c.sortable?` data-k="${c.k}"`:'';
+    return `<th${cls}${dk}>${c.label}${arrow}</th>`;
+  }).join('');
+  wrap.innerHTML=`<table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`
+    +`<div class="sub" style="margin-top:8px">Cost = notional API list-price equivalent (flat-rate Max plan — not an actual bill). Cache priced at the read rate (0.1× input); rows with no recorded model use the Sonnet 4.6 rate.</div>`;
+  wrap.querySelectorAll('th.sortable').forEach(th=>{
+    th.addEventListener('click',()=>{const kk=th.dataset.k; sessSort.dir=(sessSort.k===kk?-sessSort.dir:-1); sessSort.k=kk; renderSessionsTable();});
+  });
+}
+renderSessionsTable();
+
+/* ---- command center: skills + connectors (exact, from usage-breakdown.json) ---- */
+(function renderCommandCenter(){
+  const U = (typeof USAGE_BREAKDOWN!=='undefined' && USAGE_BREAKDOWN) || {skills:[],connectors:[]};
+  const escC = v => String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const renderList = (wrapId, items, nameOf, subOf) => {
+    const wrap = document.getElementById(wrapId);
+    if (!wrap) return;
+    if (!items || !items.length){
+      wrap.innerHTML = '<div class="empty">No usage yet — run <span class="tag">node ingest/ingest-usage.mjs</span></div>';
+      return;
+    }
+    const max = Math.max(...items.map(i=>i.count||0), 1);
+    wrap.innerHTML = items.slice(0,12).map(i=>{
+      const pct = Math.round((i.count||0)/max*100);
+      return `<div style="margin:0 0 14px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+          <span style="font-weight:600">${escC(nameOf(i))}</span>
+          <span style="font-family:ui-monospace,'IBM Plex Mono',monospace;color:var(--navy)">${fmt(i.count)}</span>
+        </div>
+        <div class="bar"><i style="width:${pct}%"></i></div>
+        <div class="sub" style="margin:0">${escC(subOf(i))}</div>
+      </div>`;
+    }).join('');
+  };
+  renderList('skills-wrap', U.skills, i=>i.name,
+    i=>`last used ${i.lastUsed||'—'}${i.sources?` · cowork ${i.sources.cowork||0} / code ${i.sources.claude_code||0}`:''}`);
+  renderList('connectors-wrap', U.connectors, i=>i.label||i.server,
+    i=>{ const t=(i.tools&&i.tools[0])?`top: ${i.tools[0].name} (${i.tools[0].count})`:''; return `last used ${i.lastUsed||'—'}${t?` · ${t}`:''}`; });
+})();
+
+/* ---- daily detail ---- */
+if (days) {
+  const rows = [...DAILY_BURN].reverse().map(r=>`<tr>
+    <td>${r.date}</td>
+    <td class="num">${k(r.cowork_tokens)}</td>
+    <td class="num">${k(r.claude_code_tokens)}</td>
+    <td class="num">${k(r.claude_chat_est)}</td>
+    <td class="num"><strong>${fmt((r.cowork_tokens||0)+(r.claude_code_tokens||0)+(r.claude_chat_est||0))}</strong></td>
+    <td class="num"><span class="sub">${k((r._cache_cowork||0)+(r._cache_claude_code||0))}</span></td>
+  </tr>`).join('');
+  document.getElementById('daily-wrap').innerHTML = `<table><thead><tr>
+    <th>Date</th><th>Cowork</th><th>Claude Code</th><th>Chat est</th><th>Total</th><th>Cache</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+} else {
+  document.getElementById('daily-wrap').innerHTML =
+    '<div class="empty">No daily rows yet.</div>';
+}
+
+/* ---- footer ---- */
+document.getElementById('foot').innerHTML =
+  `Last updated <strong>${LAST_UPDATED}</strong> (America/Los_Angeles) · ${USAGE_SUMMARY.note}<br>` +
+  `Token totals are <span class="badge b-exact">Exact</span> from local logs (cache excluded); ` +
+  `web-chat is <span class="badge b-est">Est</span>; plan limits are <span class="badge b-live">Live</span> from claude.ai.`;
+</script>
+</body>
+</html>
