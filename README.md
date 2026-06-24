@@ -40,9 +40,10 @@ that a Cowork scheduled task refreshes daily.
 ```
 ├── claude-token-dashboard.html         # The Command Center — gitignored (contains real usage)
 ├── claude-token-dashboard.sample.html  # Committed reference layout with placeholder sample data
-├── Scheduled/SKILL.md                  # The daily 5:02 PM refresh task (ownership-guarded)
+├── Scheduled/SKILL.md                  # The daily refresh task (ownership-guarded; alert chain)
 ├── .gitignore                          # keeps real-usage html/data out of git
 ├── AGENTS.md                           # AI agent instructions
+├── CHANGELOG.md                        # change history (see below)
 ├── CONTRIBUTING.md                     # commit + README standards
 └── README.md                           # this file
 ```
@@ -55,10 +56,29 @@ daily scrape of `claude.ai/settings/usage`.
 
 ## Refresh
 
-The Cowork scheduled task `claude-token-dashboard-update` runs daily at 5:02 PM PT: scrape plan limits →
-re-paste `daily-burn.json` / `sessions.json` (Claude sources) → targeted edits to
-`claude-token-dashboard.html` → completion summary, with an email/Apple-Notes alert if blocked.
+The Cowork scheduled task `claude-token-dashboard-update` runs daily (~6:12 PM PT, just after the native
+Token Burn ingest): scrape plan limits → re-paste `daily-burn.json` / `sessions.json` (Claude sources) →
+targeted edits to `claude-token-dashboard.html` → validate → notify.
+
+## Alerting
+
+The task reports through `#token-dashboard-alerts` and email, never both for the same outcome:
+
+- **Success (Slack only).** On a fully clean run — reconciliation passed, identity marker intact, and the
+  **native-ingest freshness check** passed (latest `daily-burn.json` row is today *and* the Token Burn
+  dashboard's `<span id="last-run">` is stamped today) — it posts one ✅ to `#token-dashboard-alerts` with
+  the daily total, Cowork/Claude-Code split, session/weekly %, and a `file://` link to
+  `token-burn-dashboard.html`. No email or Note on success.
+- **Failure (tiered).** On any blocker (login required, identity marker missing, reconciliation fails,
+  `stale-ingest`, MCP unavailable, or stall) it runs an independent chain: **(1)** email Ed → **(2)** Slack
+  ⚠️ to `#token-dashboard-alerts` → **(3)** Apple Note **only if both #1 and #2 fail to deliver**, with the
+  note spelling out why email and Slack each failed. Then it stops.
+
+## Change history
+
+See [`CHANGELOG.md`](CHANGELOG.md) for dated changes (humans) — and AI agents should read it plus
+[`AGENTS.md`](AGENTS.md) before working in this repo.
 
 ---
 
-_Last updated: 2026-06-22 — renamed to Command Center, Claude-sources-only (Codex removed), single-writer ownership + identity guard._
+_Last updated: 2026-06-24 — added the Slack `#token-dashboard-alerts` success ✅ + tiered failure chain (email → Slack → Apple-Note-if-both-fail), gated by a native-ingest freshness check; Apple Note demoted to last resort._
