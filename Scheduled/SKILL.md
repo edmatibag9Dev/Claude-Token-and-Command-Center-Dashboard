@@ -25,14 +25,32 @@ Skills usage and MCP-connector cards are computed client-side by the dashboard's
 The exact token figures come from the native ingesters (launchd `com.ed.tokenburn.ingest`, ~4:55 PM). You only OVERLAY live plan limits + re-paste the latest daily-burn.json/sessions.json into the Command Center file. You do NOT run the ingesters (the sandbox can't read the raw logs).
 
 ## Validate before finishing
-- Reconcile each daily-burn row: `total == cowork_tokens + claude_code_tokens + claude_chat_est + codex_tokens` (cache excluded). If any row fails, STOP → alert (do not publish).
+- Reconcile each daily-burn row: `total == cowork_tokens + claude_code_tokens + claude_chat_est + codex_tokens` (cache excluded). If any row fails, STOP → failure alert (do not publish).
 - Confirm the file still contains `<h1>Claude Token Command Center</h1>` after your edits.
+- **Native-ingest freshness check (gates the success alert):** confirm the Token Burn ingest actually ran today before reporting success.
+  - The latest `date` row in `/Users/edmatibag/Documents/Claude/Projects/Token Burn Dashboard/daily-burn.json` must equal **today** (America/Los_Angeles).
+  - `/Users/edmatibag/Documents/Claude/token-burn-dashboard.html` must contain a `<span id="last-run">` whose stamp is from today.
+  - If EITHER is stale/missing, the burn data is not current → do NOT post the success alert; treat as a failure (category `stale-ingest`) and run the failure chain instead.
 
 ## Completion summary
-Report: plan limits (session %, weekly %, extra $/$, balance), exact total tokens (Claude sources, cache excluded) with Cowork/Claude Code split, top skills + top connector, and the dashboard path.
+Report: plan limits (session %, weekly %, extra $/$, balance), exact total tokens (Claude sources, cache excluded) with Cowork/Claude Code split, top skills + top connector, the dashboard path, and which alert fired (success Slack ✅, or the failure chain + how far it got).
 
-## Alert protocol (email Ed, then STOP — do not retry)
-Trigger if: not logged into claude.ai, the identity marker is missing, reconciliation fails, a required MCP is unavailable, or the run stalls.
-- Gmail: navigate to https://mail.google.com/mail/u/0/#compose, To: edmatibag9@gmail.com, Subject: ⚠️ Claude Token Command Center — [Category]: [one-line issue], Body: task name, date/time, category, issue (2-3 sentences), steps completed, action needed. Send (Cmd+Enter).
-- Fallback if Chrome unavailable: create an Apple Note titled "⚠️ TASK ALERT: Claude Token Command Center — [date]" with the same body.
-After sending, STOP.
+## Success notification (Slack only — fires ONLY on a fully clean run)
+Post exactly one message and nothing else (no email, no Apple Note) when ALL of these hold: reconciliation passed, the `<h1>Claude Token Command Center</h1>` marker is present after edits, AND the native-ingest freshness check passed.
+- Slack: send to channel `#token-dashboard-alerts` (ID `C0BD8HUUTUG`) via the Slack MCP `slack_send_message`. Message:
+
+  ```
+  ✅ Token Burn job ran successfully — [date/time, America/Los_Angeles]
+  Daily total (Claude sources, cache excl.): [X] · Cowork [A] / Claude Code [B]
+  Session limit [N]% · Weekly [N]%
+  Dashboard: file:///Users/edmatibag/Documents/Claude/token-burn-dashboard.html
+  ```
+- The `file://` link opens the local dashboard on Ed's Mac (Slack renders it as plain text — copy/paste to open; the HTML is not hosted).
+- If `slack_send_message` fails on a success run, do NOT escalate to email/Note — log the failure in the completion summary and STOP (a missed ✅ is not an incident).
+
+## Failure alert protocol (tiered: Email → Slack → Apple Note; then STOP — do not retry)
+Trigger if: not logged into claude.ai, the identity marker is missing, reconciliation fails, the native-ingest freshness check fails (`stale-ingest`), a required MCP is unavailable, or the run stalls. Attempt the channels in order; each send is INDEPENDENT — one failing never blocks the next. Record the outcome (sent / failed + reason) of each.
+1. **Email Ed (primary).** Gmail: navigate to https://mail.google.com/mail/u/0/#compose, To: edmatibag9@gmail.com, Subject: `⚠️ Claude Token Command Center — [Category]: [one-line issue]`, Body: task name, date/time, category, issue (2-3 sentences), steps completed, action needed. Send (Cmd+Enter).
+2. **Slack (secondary).** Send to `#token-dashboard-alerts` (ID `C0BD8HUUTUG`) via `slack_send_message`: `⚠️ Token Burn job FAILED — [Category] — [date/time PT]` + the one-line issue + action needed.
+3. **Apple Note (last resort — ONLY if BOTH #1 AND #2 failed to deliver).** Create a note titled `⚠️ TASK ALERT: Claude Token Command Center — [date]`. Body MUST include: the original job failure (category + issue), `Email NOT sent — reason: [X]` (the actual error, e.g. Chrome MCP unavailable / not logged into Gmail), `Slack NOT posted — reason: [Y]` (e.g. slack_send_message error / Slack MCP unavailable; if a channel failed silently, write "no confirmation of delivery"), steps completed, and action needed.
+After running the chain, STOP.
