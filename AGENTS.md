@@ -60,9 +60,19 @@ the identity marker survives the edits.
 
 ## Alert protocol
 
-If blocked (login required, identity marker missing, reconciliation fails, MCP unavailable), email
-`edmatibag9@gmail.com` via Gmail/Chrome MCP — Subject `⚠️ Claude Token Command Center — [Category]: [issue]`.
-Fallback: an Apple Note titled `⚠️ TASK ALERT: Claude Token Command Center — [Date]`. Stop after sending.
+Outcomes route to `#token-dashboard-alerts` (Slack, ID `C0BD8HUUTUG`) and email — never both for the
+same outcome. The authoritative spec is `Scheduled/SKILL.md`; summary:
+
+- **Success → Slack only.** Post one ✅ to `#token-dashboard-alerts` ONLY when reconciliation passed, the
+  identity marker is intact, AND the native-ingest freshness check passed (latest `daily-burn.json` row is
+  today AND `token-burn-dashboard.html` carries a `<span id="last-run">` stamped today). No email/Note on
+  success. A failed success-Slack post is logged, not escalated.
+- **Failure → tiered, independent sends, then STOP.** Triggers: login required, identity marker missing,
+  reconciliation fails, `stale-ingest` (freshness check failed), MCP unavailable, or stall.
+  **(1)** Email `edmatibag9@gmail.com` via Gmail/Chrome — Subject `⚠️ Claude Token Command Center — [Category]: [issue]`.
+  **(2)** Slack ⚠️ to `#token-dashboard-alerts`.
+  **(3)** Apple Note `⚠️ TASK ALERT: Claude Token Command Center — [Date]` **only if BOTH #1 and #2 failed
+  to deliver**, with the body stating why email and Slack each failed.
 
 ---
 
@@ -71,8 +81,9 @@ Fallback: an Apple Note titled `⚠️ TASK ALERT: Claude Token Command Center �
 ```
 claude-token-dashboard.html         ← primary artifact (gitignored — real usage)
 claude-token-dashboard.sample.html  ← committed sanitized reference
-Scheduled/SKILL.md                  ← daily refresh task (ownership-guarded)
+Scheduled/SKILL.md                  ← daily refresh task (ownership-guarded; alert chain)
 AGENTS.md                           ← this file
+CHANGELOG.md                        ← dated change history (read before editing)
 CONTRIBUTING.md                     ← commit + README standards
 README.md                           ← human-readable overview
 .gitignore                          ← keeps real-usage data out of git
